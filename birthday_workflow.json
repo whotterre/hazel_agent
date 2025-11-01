@@ -14,7 +14,7 @@
        "position": [500, 302],
        "type": "a2a/generic-a2a-node",
        "typeVersion": 1,
-       "url": "http://localhost:3000/api/a2a/message"
+       "url": "https://hazel-agent.onrender.com/"
      }
    ],
    "pinData": {},
