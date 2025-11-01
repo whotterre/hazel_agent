@@ -10,6 +10,9 @@ RUN apk --no-cache add ca-certificates
 
 WORKDIR /root/
 COPY --from=build-stage /app/hazel-bot .
+COPY --from=build-stage /app/internal/agent/*.json ./internal/agent/
+COPY --from=build-stage /app/birthdays.json .
+COPY --from=build-stage /app/birthday_workflow.json .
 
 EXPOSE 3000
 

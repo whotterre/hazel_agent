@@ -5,6 +5,7 @@ import (
 	"hazel_ai/internal/handlers"
 	"hazel_ai/internal/store"
 	"log"
+	"os"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -14,7 +15,8 @@ func main() {
 
 	err := agent.CheckForAgentCard()
 	if err != nil {
-		log.Fatal("Failed to fetch agent card / none found")
+		log.Printf("Warning: Failed to load agent card: %v", err)
+		log.Println("Continuing without agent card - some endpoints may not work")
 	}
 
 	router := fiber.New()
@@ -35,6 +37,11 @@ func main() {
 
 	router.Post("/api/telex/webhook", handlerList.UseTelexWebhook)
 
-	log.Println("Starting server on port 3000")
-	log.Fatal(router.Listen(":3000"))
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "3000"
+	}
+
+	log.Printf("Starting server on port %s", port)
+	log.Fatal(router.Listen(":" + port))
 }
