@@ -40,6 +40,9 @@ func main() {
 	router := fiber.New()
 	handlerList := handlers.NewHandler(birthdayStore)
 
+	// Telex A2A endpoint - ALL A2A communication goes through POST /
+	router.Post("/", handlerList.HandleTelexA2A)
+
 	router.Get("/health", handlerList.Health)
 	router.Get("/.well-known/agent.json", handlerList.GetAgentCard)
 

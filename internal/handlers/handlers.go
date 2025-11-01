@@ -308,6 +308,98 @@ func (h *Handler) handleListRequest(c *fiber.Ctx, originalRequest map[string]int
 	return h.sendTelexResponse(c, response, originalRequest)
 }
 
+// HandleTelexA2A handles all A2A requests from Telex via POST / endpoint
+func (h *Handler) HandleTelexA2A(c *fiber.Ctx) error {
+	var jsonrpcRequest map[string]interface{}
+	if err := c.BodyParser(&jsonrpcRequest); err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"jsonrpc": "2.0",
+			"error": fiber.Map{
+				"code":    -32700,
+				"message": "Parse error",
+			},
+		})
+	}
+
+	log.Printf("Received A2A request: %+v", jsonrpcRequest)
+
+	// Validate JSON-RPC format
+	jsonrpc, ok := jsonrpcRequest["jsonrpc"].(string)
+	if !ok || jsonrpc != "2.0" {
+		return c.Status(400).JSON(fiber.Map{
+			"jsonrpc": "2.0",
+			"error": fiber.Map{
+				"code":    -32600,
+				"message": "Invalid Request",
+			},
+		})
+	}
+
+	// Get method and route accordingly
+	method, ok := jsonrpcRequest["method"].(string)
+	if !ok {
+		return c.Status(400).JSON(fiber.Map{
+			"jsonrpc": "2.0",
+			"id":      jsonrpcRequest["id"],
+			"error": fiber.Map{
+				"code":    -32600,
+				"message": "Invalid Request - missing method",
+			},
+		})
+	}
+
+	log.Printf("A2A Method: %s", method)
+
+	// Route based on method
+	switch method {
+	case "message/send":
+		return h.handleMessageSend(c, jsonrpcRequest)
+	default:
+		return c.Status(400).JSON(fiber.Map{
+			"jsonrpc": "2.0",
+			"id":      jsonrpcRequest["id"],
+			"error": fiber.Map{
+				"code":    -32601,
+				"message": "Method not found",
+			},
+		})
+	}
+}
+
+// handleMessageSend processes message/send A2A requests
+func (h *Handler) handleMessageSend(c *fiber.Ctx, jsonrpcRequest map[string]interface{}) error {
+	// Extract text content from Telex JSONRPC format
+	var textContent string
+
+	if params, ok := jsonrpcRequest["params"].(map[string]interface{}); ok {
+		if message, ok := params["message"].(map[string]interface{}); ok {
+			if parts, ok := message["parts"].([]interface{}); ok && len(parts) > 0 {
+				if part, ok := parts[0].(map[string]interface{}); ok {
+					if text, ok := part["text"].(string); ok {
+						textContent = text
+					}
+				}
+			}
+		}
+	}
+
+	log.Printf("Extracted text content: %s", textContent)
+
+	if textContent == "" {
+		return c.Status(400).JSON(fiber.Map{
+			"jsonrpc": "2.0",
+			"id":      jsonrpcRequest["id"],
+			"error": fiber.Map{
+				"code":    -32602,
+				"message": "Invalid params - no text content found",
+			},
+		})
+	}
+
+	// Process the text content
+	return h.processTextContent(c, textContent, jsonrpcRequest)
+}
+
 // sendTelexResponse sends a properly formatted response back to Telex
 func (h *Handler) sendTelexResponse(c *fiber.Ctx, message string, originalRequest map[string]interface{}) error {
 	// Check if this is a Telex JSONRPC request and respond accordingly
