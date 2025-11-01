@@ -8,6 +8,7 @@ import (
 	"hazel_ai/internal/store"
 	"log"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -162,19 +163,40 @@ func (h *Handler) SendA2AMessage(c *fiber.Ctx) error {
 // processTextContent analyzes text and determines what action to take
 func (h *Handler) processTextContent(c *fiber.Ctx, text string, originalRequest map[string]interface{}) error {
 	text = strings.ToLower(strings.TrimSpace(text))
+	log.Printf("Processing text content: '%s'", text)
 
-	// Check for different birthday-related commands
-	if strings.Contains(text, "birthday wish") || strings.Contains(text, "wish") {
+	// Check for different birthday-related commands with more flexible matching
+	if strings.Contains(text, "birthday wish") || strings.Contains(text, "wish") ||
+		strings.Contains(text, "generate") || strings.Contains(text, "random") {
 		return h.handleWishRequest(c, text, originalRequest)
-	} else if strings.Contains(text, "remember") || strings.Contains(text, "store") {
+	} else if strings.Contains(text, "remember") || strings.Contains(text, "store") ||
+		strings.Contains(text, "my birthday") {
 		return h.handleRememberRequest(c, text, originalRequest)
-	} else if strings.Contains(text, "list") || strings.Contains(text, "show") {
+	} else if strings.Contains(text, "list") || strings.Contains(text, "show") ||
+		strings.Contains(text, "birthdays") {
 		return h.handleListRequest(c, originalRequest)
+	} else if isDateFormat(text) {
+		// Handle date inputs as birthday storage requests
+		return h.handleDateInput(c, text, originalRequest)
 	} else {
 		// Generic response
 		response := "Hello! I'm Hazel, your birthday bot. I can help you with:\n• Generate birthday wishes\n• Remember birthdays\n• List stored birthdays\n\nTry asking me to 'generate a birthday wish' or 'remember my birthday'!"
 		return h.sendTelexResponse(c, response, originalRequest)
 	}
+}
+
+// isDateFormat checks if text contains date patterns
+func isDateFormat(text string) bool {
+	// Check for YYYY-MM-DD pattern
+	datePattern := `\d{4}-\d{1,2}-\d{1,2}`
+	matched, _ := regexp.MatchString(datePattern, text)
+	return matched
+}
+
+// handleDateInput processes date inputs as birthday storage
+func (h *Handler) handleDateInput(c *fiber.Ctx, text string, originalRequest map[string]interface{}) error {
+	response := fmt.Sprintf("I see you provided a date: %s. To store this as a birthday, please also provide a name. For example: 'Remember Alice's birthday is %s'", text, text)
+	return h.sendTelexResponse(c, response, originalRequest)
 }
 
 // handleWishRequest processes birthday wish requests
