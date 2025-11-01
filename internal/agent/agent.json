@@ -1,0 +1,19 @@
+{
+  "version": "1.0",
+  "name": "Hazel the Birthday Bot",
+  "description": "A bot that reminds the chat about someone's birthday",
+  "capabilities": {
+    "streaming": false,
+    "interactive": true,
+    "stateful": true
+  },
+  "endpoints": {
+    "a2a": "/"
+  },
+  "metadata": {
+    "category": "utilities",
+    "tags": ["hazel", "birthday"],
+    "author": "Fishie Lin",
+    "icon": "🎂"
+  }
+}

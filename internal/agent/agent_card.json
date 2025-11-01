@@ -1,0 +1,34 @@
+{
+  "name": "Hazel the Birthday Bot",
+  "description": "A bot that reminds the chat about a person's birthday",
+  "url": "https://localhost:3000",
+  "version": "1.0.0",
+  "provider": {
+    "organization": "Example Org.",
+    "url": "https://www.example-organization.com"
+  },
+  "documentationUrl": "https://localhost:3000/docs",
+  "capabilities": {
+    "streaming": false,
+    "pushNotifications": false,
+    "stateTransitionHistory": false
+  },
+  "defaultInputModes": ["text/plain"],
+  "defaultOutputModes": ["application/json", "text/plain"],
+  "skills": [
+    {
+      "id": "hazel_the_birthday_bot",
+      "name": "Hazel the Birthday Bot",
+      "description": "Allows a user to store their birthdays and reminds the chat when it's their birthday",
+      "inputModes": ["text/plain"],
+      "outputModes": ["application/json"],
+      "examples": [
+        {
+          "input": { "parts": [{ "text": "remember", "contentType": "text/plain" }] },
+          "output": { "parts": [{ "text": "Stored birthday...."}] }
+        }
+      ]
+    }
+  ],
+  "supportsAuthenticatedExtendedCard": false
+}
