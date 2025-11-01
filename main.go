@@ -8,12 +8,30 @@ import (
 	"os"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	// Load .env file if it exists (optional - won't fail if missing)
+	err := godotenv.Load(".env")
+	if err != nil {
+		log.Printf("No .env file found or failed to load: %v", err)
+		log.Println("Using system environment variables")
+	} else {
+		log.Println("Successfully loaded .env file")
+		apiKey := os.Getenv("GEMINI_API_KEY")
+		if apiKey != "" && len(apiKey) > 10 {
+			log.Printf("GEMINI_API_KEY loaded: %s...", apiKey[:10])
+		} else if apiKey != "" {
+			log.Printf("GEMINI_API_KEY loaded: %s", apiKey)
+		} else {
+			log.Println("GEMINI_API_KEY not found in environment")
+		}
+	}
+
 	birthdayStore := store.NewBirthdayStore("birthdays.json")
 
-	err := agent.CheckForAgentCard()
+	err = agent.CheckForAgentCard()
 	if err != nil {
 		log.Printf("Warning: Failed to load agent card: %v", err)
 		log.Println("Continuing without agent card - some endpoints may not work")
@@ -32,6 +50,11 @@ func main() {
 	router.Get("/api/birthdays/today", handlerList.GetTodaysBirthdays)
 
 	router.Get("/api/birthdays/upcoming", handlerList.GetUpcomingBirthdays)
+
+	// Birthday wish generation endpoints
+	router.Post("/api/wishes/generate", handlerList.GenerateBirthdayWish)
+	router.Get("/api/wishes/person/:id", handlerList.GenerateBirthdayWishForPerson)
+	router.Get("/api/wishes/simple", handlerList.GenerateSimpleBirthdayWish)
 
 	router.Post("/api/a2a/message", handlerList.SendA2AMessage)
 
