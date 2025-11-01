@@ -186,7 +186,12 @@ func (h *Handler) handleWishRequest(c *fiber.Ctx, text string, originalRequest m
 	// Look for patterns like "wish for John" or "birthday wish for Alice"
 	for i, word := range words {
 		if (word == "for" || word == "to") && i+1 < len(words) {
-			name = strings.Title(words[i+1])
+			nextWord := words[i+1]
+			if len(nextWord) > 0 {
+				name = strings.ToUpper(string(nextWord[0])) + strings.ToLower(nextWord[1:])
+			} else {
+				name = nextWord
+			}
 			break
 		}
 	}

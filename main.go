@@ -65,6 +65,6 @@ func main() {
 		port = "3000"
 	}
 
-	log.Printf("Starting server on port %s", port)
+	log.Printf("Starting Hazel Birthday Bot server on port %s", port)
 	log.Fatal(router.Listen(":" + port))
 }
