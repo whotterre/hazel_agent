@@ -183,25 +183,36 @@ func (h *Handler) SendA2AMessage(c *fiber.Ctx) error {
 
 // processTextContent analyzes text and determines what action to take
 func (h *Handler) processTextContent(c *fiber.Ctx, text string, originalRequest map[string]interface{}) error {
+	originalText := text
 	text = strings.ToLower(strings.TrimSpace(text))
 	log.Printf("Processing text content: '%s'", text)
 
-	// Check for different birthday-related commands with more flexible matching
-	if strings.Contains(text, "birthday wish") || strings.Contains(text, "wish") ||
-		strings.Contains(text, "generate") || strings.Contains(text, "random") {
+	// Check if text contains dates - prioritize remember requests with dates
+	hasDate := isDateFormat(text)
+	hasRemember := strings.Contains(text, "remember") || strings.Contains(text, "my birthday")
+	hasWish := strings.Contains(text, "birthday wish") || strings.Contains(text, "wish") ||
+		strings.Contains(text, "generate") || strings.Contains(text, "random")
+	hasList := strings.Contains(text, "list") || strings.Contains(text, "show birthdays")
+	hasUpcoming := strings.Contains(text, "upcoming") || strings.Contains(text, "coming up")
+
+	// Priority: Remember with date > Wish > Upcoming > List > Remember without date
+	if hasRemember && hasDate {
+		// This is a remember request with a date - handle it
+		return h.handleRememberRequest(c, originalText, originalRequest)
+	} else if hasWish {
 		return h.handleWishRequest(c, text, originalRequest)
-	} else if strings.Contains(text, "remember") || strings.Contains(text, "store") ||
-		strings.Contains(text, "my birthday") {
-		return h.handleRememberRequest(c, text, originalRequest)
-	} else if strings.Contains(text, "list") || strings.Contains(text, "show") ||
-		strings.Contains(text, "birthdays") {
+	} else if hasUpcoming && hasList {
+		return h.handleUpcomingRequest(c, originalRequest)
+	} else if hasList {
 		return h.handleListRequest(c, originalRequest)
-	} else if isDateFormat(text) {
+	} else if hasRemember {
+		return h.handleRememberRequest(c, originalText, originalRequest)
+	} else if hasDate {
 		// Handle date inputs as birthday storage requests
 		return h.handleDateInput(c, text, originalRequest)
 	} else {
 		// Generic response
-		response := "Hello! I'm Hazel, your birthday bot. I can help you with:\n• Generate birthday wishes\n• Remember birthdays\n• List stored birthdays\n\nTry asking me to 'generate a birthday wish' or 'remember my birthday'!"
+		response := "Hello! I'm Hazel, your birthday bot. I can help you with:\n• Generate birthday wishes\n• Remember birthdays\n• List stored birthdays\n• Show upcoming birthdays\n\nTry asking me to 'remember my birthday 2005-01-01' or 'generate a birthday wish'!"
 		return h.sendTelexResponse(c, response, originalRequest)
 	}
 }
@@ -287,8 +298,59 @@ func (h *Handler) handleWishRequest(c *fiber.Ctx, text string, originalRequest m
 
 // handleRememberRequest processes remember birthday requests
 func (h *Handler) handleRememberRequest(c *fiber.Ctx, text string, originalRequest map[string]interface{}) error {
-	response := "I'd love to remember your birthday! Please tell me the date in YYYY-MM-DD format (like 2003-09-09) and I'll store it for you."
-	return h.sendTelexResponse(c, response, originalRequest)
+	log.Printf("DEBUG - handleRememberRequest received text: '%s'", text)
+
+	// Try to extract date from the text using more flexible regex patterns
+	// Handle dates like "2005-01-01", "- 2003-09-09", "birthday 1995-12-25"
+	datePatterns := []string{
+		`\b\d{4}-\d{1,2}-\d{1,2}\b`,        // Standard YYYY-MM-DD
+		`-\s*\d{4}-\d{1,2}-\d{1,2}`,        // With preceding dash like "- 2003-09-09"
+		`birthday\s+\d{4}-\d{1,2}-\d{1,2}`, // With "birthday" prefix
+	}
+
+	var dateMatch string
+	for _, pattern := range datePatterns {
+		re := regexp.MustCompile(pattern)
+		match := re.FindString(text)
+		if match != "" {
+			// Extract just the date part (remove any prefix like "- " or "birthday ")
+			dateRe := regexp.MustCompile(`\d{4}-\d{1,2}-\d{1,2}`)
+			dateMatch = dateRe.FindString(match)
+			if dateMatch != "" {
+				break
+			}
+		}
+	}
+
+	log.Printf("DEBUG - Date match found: '%s'", dateMatch)
+
+	if dateMatch != "" {
+		// Try to store the birthday - use "User" as default name since no name was provided
+		name := "User" // Default name, could be enhanced to extract actual name
+
+		id, err := h.birthdayStore.AddBirthday(name, dateMatch)
+		if err != nil {
+			response := fmt.Sprintf("❌ Sorry, I couldn't store your birthday. Error: %s", err.Error())
+			return h.sendTelexResponse(c, response, originalRequest)
+		}
+
+		// Parse the date to show it nicely
+		var response string
+		parsedDate, err := time.Parse("2006-01-02", dateMatch)
+		if err == nil {
+			response = fmt.Sprintf("🎂 Perfect! I've remembered your birthday is on %s %d. I'll make sure to wish you a happy birthday! 🎉",
+				parsedDate.Month().String(), parsedDate.Day())
+		} else {
+			response = fmt.Sprintf("🎂 Great! I've stored your birthday (%s). I'll remember to celebrate with you! 🎉", dateMatch)
+		}
+
+		log.Printf("Successfully stored birthday for %s: %s (ID: %s)", name, dateMatch, id)
+		return h.sendTelexResponse(c, response, originalRequest)
+	} else {
+		// No date found in the message
+		response := "I'd love to remember your birthday! Please tell me the date in YYYY-MM-DD format (like 2005-01-01) and I'll store it for you."
+		return h.sendTelexResponse(c, response, originalRequest)
+	}
 }
 
 // handleListRequest processes list birthdays requests
@@ -303,6 +365,49 @@ func (h *Handler) handleListRequest(c *fiber.Ctx, originalRequest map[string]int
 	response := fmt.Sprintf("🎂 Stored Birthdays (%d total):\n\n", len(birthdays))
 	for _, b := range birthdays {
 		response += fmt.Sprintf("• %s - %s %d\n", b.Name, time.Month(b.Month), b.Day)
+	}
+
+	return h.sendTelexResponse(c, response, originalRequest)
+}
+
+// handleUpcomingRequest processes upcoming birthdays requests
+func (h *Handler) handleUpcomingRequest(c *fiber.Ctx, originalRequest map[string]interface{}) error {
+	now := time.Now()
+	birthdays := h.birthdayStore.List()
+
+	var upcoming []store.Birthday
+	for _, b := range birthdays {
+		thisYear := time.Date(now.Year(), time.Month(b.Month), b.Day, 0, 0, 0, 0, now.Location())
+		if thisYear.Before(now) {
+			thisYear = time.Date(now.Year()+1, time.Month(b.Month), b.Day, 0, 0, 0, 0, now.Location())
+		}
+
+		daysUntil := int(thisYear.Sub(now).Hours() / 24)
+		if daysUntil <= 30 && daysUntil > 0 {
+			upcoming = append(upcoming, b)
+		}
+	}
+
+	if len(upcoming) == 0 {
+		response := "📅 No upcoming birthdays in the next 30 days! All your saved birthdays are further away or already passed this year."
+		return h.sendTelexResponse(c, response, originalRequest)
+	}
+
+	response := fmt.Sprintf("🎂 Upcoming Birthdays (next 30 days):\n\n")
+	for _, b := range upcoming {
+		thisYear := time.Date(now.Year(), time.Month(b.Month), b.Day, 0, 0, 0, 0, now.Location())
+		if thisYear.Before(now) {
+			thisYear = time.Date(now.Year()+1, time.Month(b.Month), b.Day, 0, 0, 0, 0, now.Location())
+		}
+		daysUntil := int(thisYear.Sub(now).Hours() / 24)
+
+		if daysUntil == 0 {
+			response += fmt.Sprintf("🎉 %s - TODAY! (%s %d)\n", b.Name, time.Month(b.Month), b.Day)
+		} else if daysUntil == 1 {
+			response += fmt.Sprintf("🎂 %s - Tomorrow (%s %d)\n", b.Name, time.Month(b.Month), b.Day)
+		} else {
+			response += fmt.Sprintf("📅 %s - %d days (%s %d)\n", b.Name, daysUntil, time.Month(b.Month), b.Day)
+		}
 	}
 
 	return h.sendTelexResponse(c, response, originalRequest)
@@ -402,10 +507,15 @@ func (h *Handler) handleMessageSend(c *fiber.Ctx, jsonrpcRequest map[string]inte
 
 // sendTelexResponse sends a properly formatted response back to Telex
 func (h *Handler) sendTelexResponse(c *fiber.Ctx, message string, originalRequest map[string]interface{}) error {
+	log.Printf("Sending Telex response: %s", message)
+
 	// Check if this is a Telex JSONRPC request and respond accordingly
 	if jsonrpc, ok := originalRequest["jsonrpc"]; ok {
 		if id, ok := originalRequest["id"]; ok {
-			return c.Status(200).JSON(fiber.Map{
+			// Set explicit headers
+			c.Set("Content-Type", "application/json")
+
+			response := fiber.Map{
 				"jsonrpc": jsonrpc,
 				"id":      id,
 				"result": fiber.Map{
@@ -420,7 +530,10 @@ func (h *Handler) sendTelexResponse(c *fiber.Ctx, message string, originalReques
 						},
 					},
 				},
-			})
+			}
+
+			log.Printf("Telex response structure: %+v", response)
+			return c.Status(200).JSON(response)
 		}
 	}
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"google.golang.org/genai"
 )
@@ -30,7 +31,9 @@ func NewGeminiClient() (*GeminiClient, error) {
 }
 
 func (g *GeminiClient) GenerateBirthdayWish(name string, age int) (string, error) {
-	ctx := context.Background()
+	// Use timeout to prevent hanging
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
 	prompt := fmt.Sprintf("Generate a warm and personalized birthday wish for %s who is turning %d years old. Make it heartfelt, positive, and celebratory. Keep it under 100 words.", name, age)
 
@@ -52,7 +55,9 @@ func (g *GeminiClient) GenerateBirthdayWish(name string, age int) (string, error
 }
 
 func (g *GeminiClient) GenerateGenericBirthdayWish(name string) (string, error) {
-	ctx := context.Background()
+	// Use timeout to prevent hanging
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
 	prompt := fmt.Sprintf("Generate a warm and personalized birthday wish for %s. Make it heartfelt, positive, and celebratory. Keep it under 100 words.", name)
 
