@@ -24,8 +24,20 @@
       "outputModes": ["application/json"],
       "examples": [
         {
-          "input": { "parts": [{ "text": "remember", "contentType": "text/plain" }] },
-          "output": { "parts": [{ "text": "Stored birthday...."}] }
+          "input": { "parts": [{ "text": "remember my birthday", "contentType": "text/plain" }] },
+          "output": { "parts": [{ "text": "I'll remember your birthday! What's the date?"}] }
+        },
+        {
+          "input": { "parts": [{ "text": "generate birthday wish for Alice", "contentType": "text/plain" }] },
+          "output": { "parts": [{ "text": "🎉 Happy Birthday, Alice! May your special day be filled with joy and wonderful memories!"}] }
+        },
+        {
+          "input": { "parts": [{ "text": "wish Alice happy birthday", "contentType": "text/plain" }] },
+          "output": { "parts": [{ "text": "🎂 Happy Birthday Alice! Wishing you all the best on your special day!"}] }
+        },
+        {
+          "input": { "parts": [{ "text": "give me a birthday wish", "contentType": "text/plain" }] },
+          "output": { "parts": [{ "text": "🎉 Happy Birthday! May this new year of your life bring you endless joy, amazing adventures, and all the happiness your heart can hold! 🌟🎂"}] }
         }
       ]
     }

@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -135,9 +136,87 @@ func (h *Handler) SendA2AMessage(c *fiber.Ctx) error {
 
 	log.Printf("Received A2A message from %s: %+v", msg.From, msg.Content)
 
+	// Process different types of messages
+	switch msg.Type {
+	case "birthday_wish":
+		return h.handleBirthdayWishRequest(c, msg)
+	case "remember_birthday":
+		return h.handleRememberBirthdayRequest(c, msg)
+	default:
+		// Generic response for other message types
+		return c.Status(200).JSON(fiber.Map{
+			"status":   "processed",
+			"response": "Message received and processed",
+		})
+	}
+}
+
+// handleBirthdayWishRequest processes A2A requests for birthday wishes
+func (h *Handler) handleBirthdayWishRequest(c *fiber.Ctx, msg interface{}) error {
+	// Extract name from content (assuming it's a map or string)
+	contentMap, ok := msg.(map[string]interface{})
+	if !ok {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid message format"})
+	}
+
+	content, exists := contentMap["Content"]
+	if !exists {
+		return c.Status(400).JSON(fiber.Map{"error": "No content provided"})
+	}
+
+	// Try to extract name from content
+	name := ""
+	if contentStr, ok := content.(string); ok {
+		// Simple parsing - extract name from text like "generate wish for Alice"
+		words := strings.Fields(contentStr)
+		for i, word := range words {
+			if (word == "for" || word == "to") && i+1 < len(words) {
+				name = words[i+1]
+				break
+			}
+		}
+	}
+
+	if name == "" {
+		return c.Status(400).JSON(fiber.Map{
+			"error": "Could not extract name from request",
+			"help":  "Try: 'generate birthday wish for [name]'",
+		})
+	}
+
+	// Generate the birthday wish
+	var wish string
+	var source string
+
+	if h.geminiClient == nil {
+		wish = fmt.Sprintf("🎉 Happy Birthday, %s! 🎂 Wishing you all the joy, happiness, and wonderful surprises on your special day! 🌟", name)
+		source = "fallback"
+	} else {
+		generatedWish, err := h.geminiClient.GenerateGenericBirthdayWish(name)
+		if err != nil {
+			wish = fmt.Sprintf("🎉 Happy Birthday, %s! 🎂 Wishing you all the joy, happiness, and wonderful surprises on your special day! 🌟", name)
+			source = "fallback"
+		} else {
+			wish = generatedWish
+			source = "gemini"
+		}
+	}
+
 	return c.Status(200).JSON(fiber.Map{
-		"status":   "processed",
-		"response": "Message received and processed",
+		"status":   "success",
+		"name":     name,
+		"wish":     wish,
+		"source":   source,
+		"response": wish,
+	})
+}
+
+// handleRememberBirthdayRequest processes A2A requests to remember birthdays
+func (h *Handler) handleRememberBirthdayRequest(c *fiber.Ctx, msg interface{}) error {
+	// Similar logic for processing "remember my birthday" requests
+	return c.Status(200).JSON(fiber.Map{
+		"status":   "success",
+		"response": "Birthday reminder functionality - implementation needed",
 	})
 }
 
