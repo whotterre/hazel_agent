@@ -131,6 +131,27 @@ func (h *Handler) SendA2AMessage(c *fiber.Ctx) error {
 
 	log.Printf("Received A2A request: %+v", telexRequest)
 
+	// Check if this is a valid Telex JSONRPC request
+	if jsonrpc, ok := telexRequest["jsonrpc"].(string); ok && jsonrpc == "2.0" {
+		// Check for the correct method
+		if method, ok := telexRequest["method"].(string); ok {
+			if method != "message/send" {
+				log.Printf("Unsupported JSONRPC method: %s", method)
+				return c.Status(400).JSON(fiber.Map{
+					"jsonrpc": "2.0",
+					"id":      telexRequest["id"],
+					"error": fiber.Map{
+						"code":    -32601,
+						"message": "Method not found",
+					},
+				})
+			}
+		} else {
+			log.Printf("Missing method in JSONRPC request")
+			return c.Status(400).JSON(fiber.Map{"error": "Missing JSONRPC method"})
+		}
+	}
+
 	// Extract text content from Telex JSONRPC format
 	var textContent string
 
