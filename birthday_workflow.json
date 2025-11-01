@@ -4,8 +4,8 @@
    "description": "A workflow that manages birthdays and sends reminders",
    "id": "hazel_the_birthday_bot",
    "name": "Hazel the Birthday Bot",
-   "long_description": "\n      You are a helpful birthday bot that allows users to store their birthdays and sends a message to the channel a day before the birthday.",
-   "short_description": "",
+   "long_description": "\n      Hazel is an intelligent birthday management bot powered by Gemini AI that helps you celebrate special moments! I can store birthdays, generate personalized AI-powered birthday wishes, send automatic reminders, and manage your birthday calendar. Whether you want to remember someone's special day, create a heartfelt birthday message, or get notified about upcoming celebrations, I'm here to make every birthday memorable. Simply ask me to 'generate a birthday wish', 'remember a birthday', or 'list upcoming birthdays' and I'll take care of the rest!",
+   "short_description": "AI-powered birthday bot that stores dates, generates personalized wishes, and sends smart reminders for celebrations.",
    "nodes": [
      {
        "id": "hazel_the_birthday_bot",

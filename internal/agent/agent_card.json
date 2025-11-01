@@ -1,13 +1,13 @@
 {
   "name": "Hazel the Birthday Bot",
   "description": "A bot that reminds the chat about a person's birthday",
-  "url": "https://localhost:3000",
+  "url": "https://hazel-agent.onrender.com",
   "version": "1.0.0",
   "provider": {
     "organization": "Example Org.",
-    "url": "https://www.example-organization.com"
+    "url": "https://hazel-agent.onrender.com/"
   },
-  "documentationUrl": "https://localhost:3000/docs",
+  "documentationUrl": "https://hazel-agent.onrender.com",
   "capabilities": {
     "streaming": false,
     "pushNotifications": false,
