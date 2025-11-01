@@ -1,0 +1,24 @@
+{
+   "active": true,
+   "category": "utilities",
+   "description": "A workflow that manages birthdays and sends reminders",
+   "id": "hazel_the_birthday_bot",
+   "name": "Hazel the Birthday Bot",
+   "long_description": "\n      You are a helpful birthday bot that allows users to store their birthdays and sends a message to the channel a day before the birthday.",
+   "short_description": "",
+   "nodes": [
+     {
+       "id": "hazel_the_birthday_bot",
+       "name": "Hazel the Birthday Bot",
+       "parameters": {},
+       "position": [500, 302],
+       "type": "a2a/generic-a2a-node",
+       "typeVersion": 1,
+       "url": "http://localhost:3000/api/a2a/message"
+     }
+   ],
+   "pinData": {},
+   "settings": {
+     "executionOrder": "v1"
+   }
+ }
