@@ -122,66 +122,78 @@ func (h *Handler) GetUpcomingBirthdays(c *fiber.Ctx) error {
 }
 
 func (h *Handler) SendA2AMessage(c *fiber.Ctx) error {
-	type A2AMessage struct {
-		From    string      `json:"from"`
-		To      string      `json:"to"`
-		Content interface{} `json:"content"`
-		Type    string      `json:"type"`
-	}
-
-	var msg A2AMessage
-	if err := c.BodyParser(&msg); err != nil {
+	// Handle both simple A2A messages and Telex JSONRPC format
+	var telexRequest map[string]interface{}
+	if err := c.BodyParser(&telexRequest); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid A2A message"})
 	}
 
-	log.Printf("Received A2A message from %s: %+v", msg.From, msg.Content)
+	log.Printf("Received A2A request: %+v", telexRequest)
 
-	// Process different types of messages
-	switch msg.Type {
-	case "birthday_wish":
-		return h.handleBirthdayWishRequest(c, msg)
-	case "remember_birthday":
-		return h.handleRememberBirthdayRequest(c, msg)
-	default:
-		// Generic response for other message types
-		return c.Status(200).JSON(fiber.Map{
-			"status":   "processed",
-			"response": "Message received and processed",
-		})
-	}
-}
+	// Extract text content from Telex JSONRPC format
+	var textContent string
 
-// handleBirthdayWishRequest processes A2A requests for birthday wishes
-func (h *Handler) handleBirthdayWishRequest(c *fiber.Ctx, msg interface{}) error {
-	// Extract name from content (assuming it's a map or string)
-	contentMap, ok := msg.(map[string]interface{})
-	if !ok {
-		return c.Status(400).JSON(fiber.Map{"error": "Invalid message format"})
-	}
-
-	content, exists := contentMap["Content"]
-	if !exists {
-		return c.Status(400).JSON(fiber.Map{"error": "No content provided"})
-	}
-
-	// Try to extract name from content
-	name := ""
-	if contentStr, ok := content.(string); ok {
-		// Simple parsing - extract name from text like "generate wish for Alice"
-		words := strings.Fields(contentStr)
-		for i, word := range words {
-			if (word == "for" || word == "to") && i+1 < len(words) {
-				name = words[i+1]
-				break
+	// Check if this is a Telex JSONRPC request
+	if params, ok := telexRequest["params"].(map[string]interface{}); ok {
+		if message, ok := params["message"].(map[string]interface{}); ok {
+			if parts, ok := message["parts"].([]interface{}); ok && len(parts) > 0 {
+				if part, ok := parts[0].(map[string]interface{}); ok {
+					if text, ok := part["text"].(string); ok {
+						textContent = text
+					}
+				}
 			}
 		}
 	}
 
+	// If no text content found, try simple format
+	if textContent == "" {
+		if content, ok := telexRequest["content"].(string); ok {
+			textContent = content
+		}
+	}
+
+	log.Printf("Extracted text content: %s", textContent)
+
+	// Process the text content
+	return h.processTextContent(c, textContent, telexRequest)
+}
+
+// processTextContent analyzes text and determines what action to take
+func (h *Handler) processTextContent(c *fiber.Ctx, text string, originalRequest map[string]interface{}) error {
+	text = strings.ToLower(strings.TrimSpace(text))
+
+	// Check for different birthday-related commands
+	if strings.Contains(text, "birthday wish") || strings.Contains(text, "wish") {
+		return h.handleWishRequest(c, text, originalRequest)
+	} else if strings.Contains(text, "remember") || strings.Contains(text, "store") {
+		return h.handleRememberRequest(c, text, originalRequest)
+	} else if strings.Contains(text, "list") || strings.Contains(text, "show") {
+		return h.handleListRequest(c, originalRequest)
+	} else {
+		// Generic response
+		response := "Hello! I'm Hazel, your birthday bot. I can help you with:\n• Generate birthday wishes\n• Remember birthdays\n• List stored birthdays\n\nTry asking me to 'generate a birthday wish' or 'remember my birthday'!"
+		return h.sendTelexResponse(c, response, originalRequest)
+	}
+}
+
+// handleWishRequest processes birthday wish requests
+func (h *Handler) handleWishRequest(c *fiber.Ctx, text string, originalRequest map[string]interface{}) error {
+	// Try to extract a name from the text
+	name := ""
+	words := strings.Fields(text)
+
+	// Look for patterns like "wish for John" or "birthday wish for Alice"
+	for i, word := range words {
+		if (word == "for" || word == "to") && i+1 < len(words) {
+			name = strings.Title(words[i+1])
+			break
+		}
+	}
+
+	// If no specific name, generate a generic wish
 	if name == "" {
-		return c.Status(400).JSON(fiber.Map{
-			"error": "Could not extract name from request",
-			"help":  "Try: 'generate birthday wish for [name]'",
-		})
+		name = "you"
 	}
 
 	// Generate the birthday wish
@@ -189,36 +201,97 @@ func (h *Handler) handleBirthdayWishRequest(c *fiber.Ctx, msg interface{}) error
 	var source string
 
 	if h.geminiClient == nil {
-		wish = fmt.Sprintf("🎉 Happy Birthday, %s! 🎂 Wishing you all the joy, happiness, and wonderful surprises on your special day! 🌟", name)
+		wish = fmt.Sprintf("🎉 Happy Birthday%s! 🎂 Wishing you all the joy, happiness, and wonderful surprises on your special day! May this year bring you endless blessings and amazing adventures! 🌟",
+			func() string {
+				if name == "you" {
+					return ""
+				} else {
+					return ", " + name
+				}
+			}())
 		source = "fallback"
 	} else {
-		generatedWish, err := h.geminiClient.GenerateGenericBirthdayWish(name)
+		var err error
+		if name == "you" {
+			wish, err = h.geminiClient.GenerateGenericBirthdayWish("friend")
+		} else {
+			wish, err = h.geminiClient.GenerateGenericBirthdayWish(name)
+		}
+
 		if err != nil {
-			wish = fmt.Sprintf("🎉 Happy Birthday, %s! 🎂 Wishing you all the joy, happiness, and wonderful surprises on your special day! 🌟", name)
+			wish = fmt.Sprintf("🎉 Happy Birthday%s! 🎂 Wishing you all the joy, happiness, and wonderful surprises on your special day! 🌟",
+				func() string {
+					if name == "you" {
+						return ""
+					} else {
+						return ", " + name
+					}
+				}())
 			source = "fallback"
 		} else {
-			wish = generatedWish
 			source = "gemini"
 		}
 	}
 
+	log.Printf("Generated %s birthday wish for %s", source, name)
+	return h.sendTelexResponse(c, wish, originalRequest)
+}
+
+// handleRememberRequest processes remember birthday requests
+func (h *Handler) handleRememberRequest(c *fiber.Ctx, text string, originalRequest map[string]interface{}) error {
+	response := "I'd love to remember your birthday! Please tell me the date in YYYY-MM-DD format (like 2003-09-09) and I'll store it for you."
+	return h.sendTelexResponse(c, response, originalRequest)
+}
+
+// handleListRequest processes list birthdays requests
+func (h *Handler) handleListRequest(c *fiber.Ctx, originalRequest map[string]interface{}) error {
+	birthdays := h.birthdayStore.List()
+
+	if len(birthdays) == 0 {
+		response := "📝 No birthdays stored yet! Ask me to 'remember your birthday' to get started."
+		return h.sendTelexResponse(c, response, originalRequest)
+	}
+
+	response := fmt.Sprintf("🎂 Stored Birthdays (%d total):\n\n", len(birthdays))
+	for _, b := range birthdays {
+		response += fmt.Sprintf("• %s - %s %d\n", b.Name, time.Month(b.Month), b.Day)
+	}
+
+	return h.sendTelexResponse(c, response, originalRequest)
+}
+
+// sendTelexResponse sends a properly formatted response back to Telex
+func (h *Handler) sendTelexResponse(c *fiber.Ctx, message string, originalRequest map[string]interface{}) error {
+	// Check if this is a Telex JSONRPC request and respond accordingly
+	if jsonrpc, ok := originalRequest["jsonrpc"]; ok {
+		if id, ok := originalRequest["id"]; ok {
+			return c.Status(200).JSON(fiber.Map{
+				"jsonrpc": jsonrpc,
+				"id":      id,
+				"result": fiber.Map{
+					"message": fiber.Map{
+						"kind": "message",
+						"role": "assistant",
+						"parts": []fiber.Map{
+							{
+								"kind": "text",
+								"text": message,
+							},
+						},
+					},
+				},
+			})
+		}
+	}
+
+	// Fallback to simple response
 	return c.Status(200).JSON(fiber.Map{
 		"status":   "success",
-		"name":     name,
-		"wish":     wish,
-		"source":   source,
-		"response": wish,
+		"response": message,
 	})
 }
 
-// handleRememberBirthdayRequest processes A2A requests to remember birthdays
-func (h *Handler) handleRememberBirthdayRequest(c *fiber.Ctx, msg interface{}) error {
-	// Similar logic for processing "remember my birthday" requests
-	return c.Status(200).JSON(fiber.Map{
-		"status":   "success",
-		"response": "Birthday reminder functionality - implementation needed",
-	})
-}
+// Old A2A handlers replaced with new Telex-compatible ones above
 
 func (h *Handler) UseTelexWebhook(c *fiber.Ctx) error {
 	type TelexWebhook struct {
