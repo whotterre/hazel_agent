@@ -2,6 +2,7 @@ FROM golang:1.25-alpine AS build-stage
 
 WORKDIR /app
 COPY . .
+RUN go mod download
 RUN GOOS=linux go build -o hazel-bot .
 
 FROM alpine:latest
