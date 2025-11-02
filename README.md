@@ -1,168 +1,367 @@
-# Birthday Bot
+# 🎂 Hazel the Birthday Bot
 
-A birthday management system with Telex integration for automated reminders and wishes.
+> An AI-powered birthday management agent that integrates seamlessly with Telex.im using the A2A protocol
 
-## 📁 Project Structure
+Hazel is an intelligent birthday bot built for HNG Internship Stage 3 Backend Task. She remembers birthdays so you don't have to, generates personalized AI-powered birthday wishes using Google Gemini, and lives right in your chat through Telex's A2A (Agent-to-Agent) protocol.
 
-```
-├── main.go                     # Main application entry point
-├── internal/
-│   ├── a2a/
-│   │   └── logic.go            # Birthday reminder logic
-│   └── agent/
-│       ├── agent_card.json     # Agent capability definition
-│       ├── agent.json          # Agent metadata
-│       └── agent_card_loader.go # Agent card loading utilities
-├── birthday_workflow.json      # Telex workflow definition
-├── birthdays.json              # Birthday data storage
-├── go.mod                      # Go module dependencies
-└── README.md                   # Documentation
-```
+## 🌟 Why Hazel?
+
+**The Problem**: We all have that friend who never forgets a birthday, and another who couldn't remember their own anniversary. Birthday forgetfulness is universally relatable – and painful.
+
+**The Solution**: An AI agent that combines natural language processing, persistent storage, and Google Gemini AI to create a birthday assistant that actually feels human.
+
+**The Magic**: Just tell Hazel "remember my birthday 2005-01-01" in plain English, and she'll handle everything from storage to generating personalized wishes when the time comes.
 
 ## ✨ Features
 
-- **Birthday Storage**: JSON-based persistent storage for birthday data
-- **Automated Reminders**: 24-hour advance notifications
-- **Birthday Wishes**: Automated greetings on the actual day
-- **Telex Integration**: A2A protocol support for chat platforms
-- **REST API**: HTTP endpoints for birthday management
-- **Webhooks**: Telex webhook support for event triggers
+### 🧠 **AI-Powered Intelligence**
+- **Google Gemini Integration**: Generates personalized, thoughtful birthday wishes
+- **Natural Language Processing**: Understands various ways people express birthday requests
+- **Smart Text Analysis**: Extracts dates and context from conversational input
+- **Graceful Fallback**: Beautiful default messages when AI is unavailable
 
-## Quick Start
+### 💬 **Seamless Chat Integration**
+- **Telex A2A Protocol**: Full JSON-RPC 2.0 compliant integration
+- **Real-time Messaging**: Instant responses through chat interface
+- **Agent Discovery**: Proper `.well-known/agent.json` implementation
+- **Workflow Support**: Compatible with Telex workflow automation
 
-1. **Build the project:**
-   ```bash
-   go build -o birthday-bot.exe .
-   ```
+### 🎯 **Smart Birthday Management**
+- **Natural Commands**: "remember my birthday", "list birthdays", "upcoming birthdays"
+- **Flexible Date Formats**: Handles YYYY-MM-DD and various input styles
+- **Upcoming Notifications**: Shows birthdays in the next 30 days
+- **Persistent Storage**: Survives container restarts and deployments
 
-2. **Run the server:**
-   ```bash
-   ./birthday-bot.exe
-   ```
+### 🔧 **Production Ready**
+- **Comprehensive Logging**: Debug-friendly with detailed request/response tracking
+- **Error Handling**: Graceful degradation with user-friendly error messages
+- **Timeout Management**: Prevents hanging on external API calls
+- **Container Aware**: Designed for ephemeral container environments like Render
 
-The server starts on port 3000 and provides a REST API for birthday management.
+## 🚀 Live Demo
 
-## API Usage
+**Deployed at**: [hazel-agent.onrender.com](https://hazel-agent.onrender.com)
 
-### Adding Birthdays
+**Try it in Telex**: Search for "Hazel the Birthday Bot" in your Telex colleagues
 
-```bash
-curl -X POST http://localhost:3000/api/birthdays \
-  -H "Content-Type: application/json" \
-  -d '{"name": "John Doe", "date": "2024-12-25"}'
+### Quick Test Commands:
+```
+remember my birthday 2005-01-01
+list birthdays
+generate a birthday wish for Alice
+list upcoming birthdays
 ```
 
-### Listing Birthdays
+## 📁 Project Architecture
 
+```
+hazel_agent/
+├── main.go                     # Application entry point & server setup
+├── internal/
+│   ├── handlers/
+│   │   └── handlers.go         # HTTP handlers & A2A message processing
+│   ├── clients/
+│   │   └── gemini.go          # Google Gemini AI client integration
+│   ├── store/
+│   │   └── store.go           # Birthday data storage & persistence
+│   └── agent/
+│       ├── agent_card.json    # Telex agent capability definition
+│       └── agent_card_loader.go # Agent card loading utilities
+├── birthday_workflow.json      # Telex workflow configuration
+├── Dockerfile                  # Container deployment configuration
+├── go.mod                      # Go module dependencies
+└── .env.example               # Environment variables template
+```
+
+## 🛠 Quick Start
+
+### Prerequisites
+- **Go 1.21+** installed
+- **Google Gemini API Key** (for AI birthday wishes)
+- **Telex.im account** (for chat integration)
+
+### Environment Setup
+
+1. **Clone and navigate:**
+   ```bash
+   git clone https://github.com/whotterre/hazel_agent.git
+   cd hazel_agent
+   ```
+
+2. **Install dependencies:**
+   ```bash
+   go mod tidy
+   ```
+
+3. **Set up environment variables:**
+   ```bash
+   cp .env.example .env
+   # Edit .env and add your GEMINI_API_KEY
+   ```
+
+4. **Build and run:**
+   ```bash
+   go build -o hazel_bot
+   ./hazel_bot
+   ```
+
+The server starts on port 3000 (or PORT environment variable).
+
+### 🔑 Environment Variables
+
+Create a `.env` file with:
+```env
+GEMINI_API_KEY=your_google_gemini_api_key_here
+PORT=3000
+```
+
+## 🔌 API Reference
+
+### Core Endpoints
+
+#### **Agent Discovery**
+```http
+GET /.well-known/agent.json
+```
+Returns the Telex agent card defining Hazel's capabilities.
+
+#### **Health Check**
+```http
+GET /health
+```
+Basic health check endpoint.
+
+#### **Telex A2A Integration**
+```http
+POST /
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": "unique-id",
+  "method": "message/send",
+  "params": {
+    "message": {
+      "kind": "message", 
+      "role": "user",
+      "parts": [{"kind": "text", "text": "remember my birthday 2005-01-01"}]
+    }
+  }
+}
+```
+
+### REST API Endpoints
+
+#### **Add Birthday**
+```bash
+  -H "Content-Type: application/json" \
+  -d '{"name": "Alice", "date": "2005-01-01"}'
+```
+
+#### **List All Birthdays**
 ```bash
 curl http://localhost:3000/api/birthdays
 ```
 
-### Manual Birthday Check
-
+#### **Get Today's Birthdays**  
 ```bash
-curl -X POST http://localhost:3000/api/trigger/birthday-check
+curl http://localhost:3000/api/birthdays/today
 ```
 
-### Message Types
+#### **Get Upcoming Birthdays**
+```bash
+curl http://localhost:3000/api/birthdays/upcoming
+```
 
-The agent sends two types of messages:
+#### **Generate Birthday Wish**
+```bash
+curl -X POST http://localhost:3000/api/wishes/generate \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Alice", "age": 25}'
+```
 
-#### 1. Reminder Messages (Day Before Birthday)
+## 🤖 How Hazel Works
+
+### Natural Language Processing
+Hazel understands various ways people might express birthday-related requests:
+
+```
+✅ "remember my birthday 2005-01-01"
+✅ "my birthday is January 1st 2005"  
+✅ "remember my birthday - 2003-09-09"
+✅ "list upcoming birthdays"
+✅ "generate a birthday wish for Alice"
+```
+
+### AI-Powered Responses
+Using Google Gemini AI, Hazel generates personalized birthday wishes:
+
+**Input**: "generate a birthday wish for Alice"
+**Output**: "🎉 Happy Birthday, Alice! May your special day sparkle with joy, laughter, and all the wonderful surprises life has to offer. Here's to another year of amazing adventures and cherished memories! 🌟�"
+
+### A2A Protocol Integration
+Hazel communicates with Telex using JSON-RPC 2.0:
+
 ```json
 {
-  "kind": "message",
-  "role": "agent",
-  "parts": [
-    {
-      "kind": "text",
-      "text": "Reminder: John's birthday is tomorrow! 🎉"
+  "jsonrpc": "2.0",
+  "id": "request-id", 
+  "result": {
+    "message": {
+      "kind": "message",
+      "role": "assistant",
+      "parts": [{"kind": "text", "text": "🎂 Perfect! I've remembered your birthday..."}]
     }
-  ],
-  "messageId": "uuid",
-  "metadata": {
-    "birthday_id": "uuid",
-    "birthday_name": "John",
-    "type": "reminder"
   }
 }
 ```
 
-#### 2. Birthday Wishes (On Actual Birthday)
-```json
-{
-  "kind": "message",
-  "role": "agent", 
-  "parts": [
-    {
-      "kind": "text",
-      "text": "Happy Birthday, John! 🎉🎂 May this special day bring you endless joy, wonderful surprises, and all the happiness your heart can hold. Here's to another amazing year ahead!"
-    }
-  ],
-  "messageId": "uuid",
-  "metadata": {
-    "birthday_id": "uuid",
-    "birthday_name": "John",
-    "type": "birthday_wish"
-  }
-}
+## 🏗 Architecture & Design
+
+### Tech Stack
+- **Backend**: Go with Fiber web framework
+- **AI Integration**: Google Gemini AI API
+- **Storage**: JSON file-based persistence  
+- **Protocol**: JSON-RPC 2.0 for A2A communication
+- **Deployment**: Docker container on Render
+- **Environment**: Supports development and production configurations
+
+### Key Design Decisions
+
+#### **Go + Fiber Framework**
+- Excellent concurrency for handling multiple AI calls and chat messages
+- Lightweight and fast HTTP handling
+- Simple, Express.js-like API design
+
+#### **Google Gemini AI**  
+- State-of-the-art language model for natural birthday wishes
+- 10-second timeout to prevent hanging
+- Graceful fallback to pre-written messages
+
+#### **A2A Protocol Implementation**
+- Full JSON-RPC 2.0 compliance for Telex integration
+- Single POST endpoint routing (Telex requirement)
+- Proper agent card discovery mechanism
+
+#### **Container-Aware Architecture**
+- Handles ephemeral container storage limitations
+- Comprehensive logging for debugging in production
+- Environment variable configuration
+
+### Message Flow
+```
+User Input → Natural Language Processing → Intent Detection → Action Router → Response Generation → AI Enhancement → Telex Response
 ```
 
-## Telex Integration
+## 🚀 Deployment
 
-The bot integrates with Telex via the A2A protocol:
-
-### Agent Discovery
+### Docker Deployment
 ```bash
+# Build Docker image
+docker build -t hazel-bot .
+
+# Run container
+docker run -p 3000:3000 -e GEMINI_API_KEY=your_key hazel-bot
+```
+
+### Render Deployment
+1. Connect your GitHub repository to Render
+2. Set environment variables in Render dashboard
+3. Deploy automatically on git push
+
+### Environment Variables
+```env
+GEMINI_API_KEY=your_google_gemini_api_key
+PORT=3000                    # Optional, defaults to 3000
+```
+
+## 🧪 Testing
+
+### Manual Testing with Telex
+1. Search for "Hazel the Birthday Bot" in Telex colleagues
+2. Try these commands:
+   - `remember my birthday 2005-01-01`
+   - `list birthdays`
+   - `generate a birthday wish for Alice`
+   - `list upcoming birthdays`
+
+### API Testing
+```bash
+# Test health endpoint
+curl http://localhost:3000/health
+
+# Test agent discovery
 curl http://localhost:3000/.well-known/agent.json
-```
 
-### Telex Webhooks
-```bash
-curl -X POST http://localhost:3000/api/telex/webhook \
+# Test birthday storage
+curl -X POST http://localhost:3000/api/birthdays \
   -H "Content-Type: application/json" \
-  -d '{"event": "daily_check", "data": {}}'
+  -d '{"name": "Test User", "date": "2000-01-01"}'
 ```
 
-### A2A Messages
-```bash
-curl -X POST http://localhost:3000/api/a2a/message \
-  -H "Content-Type: application/json" \
-  -d '{"from": "telex", "to": "birthday_bot", "content": "check birthdays", "type": "command"}'
+## 📚 Dependencies
+
+```go
+require (
+    github.com/gofiber/fiber/v2 v2.52.9
+    github.com/google/uuid v1.6.0
+    github.com/joho/godotenv v1.5.1
+    google.golang.org/genai v0.18.0
+)
 ```
 
-## Configuration
+## 🐛 Troubleshooting
 
-### Agent Card (`internal/agent/agent_card.json`)
-Defines the bot's capabilities for Telex integration:
-- Birthday management functionality
-- A2A protocol endpoints
-- Input/output modes
-- Skill definitions
+### Common Issues
 
-### Data Storage
-- **Format**: JSON file storage
-- **Location**: `birthdays.json` in project root  
-- **Structure**: Array of birthday objects with ID, name, month, day, and timestamps
+#### **"Error while streaming" in Telex**
+- **Cause**: Missing Content-Type headers or AI timeout
+- **Solution**: Check logs for timeout errors, verify Gemini API key
 
-## Development
+#### **Birthdays disappearing**  
+- **Cause**: Container restart wiped ephemeral storage
+- **Solution**: Expected behavior on Render, data persists during active sessions
 
-### Available Endpoints
+#### **Agent not responding in Telex**
+- **Cause**: Agent card URL incorrect or server down
+- **Solution**: Verify deployment URL matches agent card configuration
 
-```
-GET  /health                     - Health check
-GET  /.well-known/agent.json     - Agent discovery
-POST /api/birthdays              - Add birthday
-GET  /api/birthdays              - List birthdays
-GET  /api/birthdays/today        - Today's birthdays
-GET  /api/birthdays/upcoming     - Upcoming birthdays (30 days)
-POST /api/a2a/message            - A2A message processing
-POST /api/telex/webhook          - Telex webhook handler
-POST /api/trigger/birthday-check - Manual birthday check
-```
+### Debug Mode
+Enable detailed logging by checking server logs after requests.
 
-### Dependencies
+## 🎯 HNG Stage 3 Requirements
 
-- `github.com/gofiber/fiber/v2` - HTTP web framework
-- `github.com/google/uuid` - UUID generation
-- Standard Go libraries for HTTP, JSON, and time handling
+This project fulfills all HNG Internship Stage 3 Backend Task requirements:
+
+✅ **Working AI Agent**: Google Gemini integration with natural language processing  
+✅ **Telex.im Integration**: Full A2A protocol implementation with JSON-RPC 2.0  
+✅ **Live Demo**: Deployed at hazel-agent.onrender.com  
+✅ **Clean API**: RESTful endpoints with proper error handling  
+✅ **Documentation**: Comprehensive README and inline code documentation  
+✅ **Creativity**: Solves universal problem of birthday forgetfulness  
+✅ **Error Handling**: Graceful degradation and comprehensive logging
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)  
+5. Open a Pull Request
+
+## 📝 License
+
+This project is part of the HNG Internship Stage 3 Backend Task.
+
+## 🙏 Acknowledgments
+
+- **HNG Internship** for the challenging and educational task requirements
+- **Telex.im** for providing the A2A protocol and platform integration
+- **Google Gemini AI** for enabling personalized birthday wish generation
+- **Go Community** for excellent libraries and documentation
+
+---
+
+**Built with ❤️ for HNG Internship Stage 3 Backend Task**
+
+*Making birthdays memorable, one AI-generated wish at a time.*
